@@ -23,6 +23,7 @@ void clearSharedMem1();
 void clearSharedMem2();
 void clearResMem();
 void clearMsg();
+void resourceStats();
 
 pid_t childpid;
 int spawnedSlaves = 0;
@@ -36,6 +37,8 @@ shmRes *shresinfo;
 msgholder *msgqinfo;
 
 FILE *fp;
+
+int verbose =1; //change later
 
 int main(int argc, char const *argv[])
 {
@@ -144,6 +147,24 @@ if((msgid = msgget(msg_key, IPC_CREAT | 0777)) == -1) {
     }
   }
 
+  //Assigning resources
+
+  for(i = 0; i < 20; i++) {
+    shresinfo[i].quantity = 1 + rand() % 10;
+    shresinfo[i].quantityAvail = shresinfo[i].quantity;
+  }
+
+
+//Selecting 4 resources that will be sharable (20% of 20 = 4)
+  for(i = 0; i < 4; i++) {
+    int c = rand() % 20;
+    shresinfo[c].quantity = 5000;  //Assigning huge values to it
+    shresinfo[c].quantityAvail = 5000;
+  }
+
+  resourceStats();
+
+
 //File open 
 	fp = fopen(logfile, "w");
 	fprintf(fp, "Opening file ... \n" );
@@ -160,7 +181,36 @@ if((msgid = msgget(msg_key, IPC_CREAT | 0777)) == -1) {
 
 	return 0;
 }
+void resourceStats(){
 
+	  if (verbose)
+    {
+      int k = 0;
+      printf("Resource# :         ");
+      while(k < 20)
+      {
+          printf(" %d ", k );
+          k++;
+      }
+      printf("\n");
+      k = 0;
+      printf("Quantity available: ");
+      while(k < 20)
+      {
+          printf("%d ", shresinfo[k].quantityAvail);
+          k++;
+      }
+      printf("\n");
+      k = 0;
+      printf("Total Quantity    : ");
+      while(k < 20)
+      {
+          printf(" %d ", shresinfo[k].quantity );
+          k++;
+      }
+      printf("\n");
+    }
+  }
 
 void interruptHandler(int SIG){
   signal(SIGQUIT, SIG_IGN);
