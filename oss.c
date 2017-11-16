@@ -27,6 +27,7 @@ void clearMsg();
 pid_t childpid;
 int spawnedSlaves = 0;
 int mypid = 0;
+int noOfSlaves =18;
 char* arg1;
 int shmid,shmpcbid, resid, msgid;
 shmClock *shinfo;
@@ -72,7 +73,6 @@ int main(int argc, char const *argv[])
 		// clock initially set to 0
 		shinfo->nsec = 0;
 		shinfo->sec = 0;
-	//	shinfo->scheduledpid = -1;
 	}
 
 	//create shared memory for pcb
@@ -126,6 +126,22 @@ int main(int argc, char const *argv[])
 if((msgid = msgget(msg_key, IPC_CREAT | 0777)) == -1) {
     perror("Master msgget for master queue");
     exit(-1);
+  }
+
+//Initialise process array
+    int i;
+  for (i = 0; i < noOfSlaves; i++) {
+    shpcbinfo[i].pcbId = 0;
+    shpcbinfo[i].deadlock = 0;
+    shpcbinfo[i].terminate = 0;
+    shpcbinfo[i].request = -1;
+    shpcbinfo[i].release = -1;
+    shpcbinfo[i].parrivalnsec = 0;
+    shpcbinfo[i].parrivalsec = 0;
+    int j;
+    for(j = 0; j < 20; j++) {
+      shpcbinfo[i].resources[j] = 0;
+    }
   }
 
 //File open 
