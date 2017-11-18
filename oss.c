@@ -24,11 +24,19 @@ void clearSharedMem2();
 void clearResMem();
 void clearMsg();
 void resourceStats();
+bool req_lt_avail(int*, int);
+
+const unsigned long int NANOSECOND = 1000000000;
+const int TOTALPROCESS = 100; //default
+unsigned long startTime = 0;
 
 pid_t childpid;
 int spawnedSlaves = 0;
 int mypid = 0;
 int noOfSlaves =18;
+int maxslaves = 100;
+int processes = 0;
+int pcbindex = -1;
 char* arg1;
 int shmid,shmpcbid, resid, msgid;
 shmClock *shinfo;
@@ -39,6 +47,7 @@ msgholder *msgqinfo;
 FILE *fp;
 
 int verbose =1; //change later
+int ztime = 2;
 
 int main(int argc, char const *argv[])
 {
@@ -155,7 +164,7 @@ if((msgid = msgget(msg_key, IPC_CREAT | 0777)) == -1) {
   }
 
 
-//Selecting 4 resources that will be sharable (20% of 20 = 4)
+//Selecting 4 resources that will be shared (20% of 20 = 4)
   for(i = 0; i < 4; i++) {
     int c = rand() % 20;
     shresinfo[c].quantity = 5000;  //Assigning huge values to it
@@ -164,10 +173,41 @@ if((msgid = msgget(msg_key, IPC_CREAT | 0777)) == -1) {
 
   resourceStats();
 
-
-//File open 
+  //File open 
 	fp = fopen(logfile, "w");
 	fprintf(fp, "Opening file ... \n" );
+// Call child process at random intervals
+	while(shinfo->sec < 20)
+{
+int xx = rand()%1000;
+//int xx = rand()%6000;
+long unsigned currentTime = (shinfo->sec*NANOSECOND)+shinfo->nsec;
+long unsigned plus1xxTime = currentTime + NANOSECOND +xx;
+//long unsigned plus1xxTime = currentTime + xx;
+int flag = 0;
+
+startTime = time(NULL);
+srand(time(NULL));
+
+    while ( currentTime <plus1xxTime)
+       	{
+	   		shinfo->nsec += xx;
+        	if (shinfo->nsec > (NANOSECOND - 1))
+            {
+            shinfo->nsec -= (NANOSECOND - 1);
+            	shinfo->sec++;
+            }
+           currentTime = (shinfo->sec*NANOSECOND)+shinfo->nsec; 
+       	}
+     
+    //spawn process if process table is not full.
+		 spawnSlaveProcess(1);
+
+			xx = rand()%1000;
+			plus1xxTime = currentTime + NANOSECOND +xx;
+
+}
+
 
 //clearing memory
 	free(arg1);
@@ -282,16 +322,40 @@ void spawnSlaveProcess(int noOfSlaves)
 {
 	int i;
 	mypid++;
-	//Forking processes
-	for(i = 0; i < noOfSlaves; i++) 
-	{ 
-       	if((childpid = fork())<=0)
-       		break;
+    pcbindex = -1;
+    //checking the number of processes in the pcb
+    for(i = 0; i < 18; i++)
+     {
+      if(shpcbinfo[i].pcbId == 0)
+       {
+        pcbindex = i;
+        shpcbinfo[i].pcbId = 1;
+        break;
+      } 
     }
 
+    if(pcbindex == -1)
+    	printf("Cannot spawn process, PCB is full\n");
+    else
+    	printf("Spawning process\n");
+    if(verbose)
+    {
+    	if(pcbindex == -1)
+    		fprintf(fp, "PCB is full, cannot spawn process\n");
+    	else
+    		fprintf(fp, "Spawning process \n");
+    }
+	//Forking processes
+		//Forking processes
+	for(i = 0; i < noOfSlaves; i++) 
+	{ 
+    if((childpid = fork())<=0)
+       		break;
+     }
     if (childpid == 0)
 	    {
     	//execl user.c    	
+	    	processes++;
 			sprintf(arg1, "%d", mypid);
 			//Calling user.c program
 
