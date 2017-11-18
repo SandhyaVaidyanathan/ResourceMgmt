@@ -13,7 +13,6 @@
 #include <sys/sem.h>
 #include <getopt.h>
 #include <stdbool.h>
-
 #include "shm.h"
 
 
@@ -25,18 +24,22 @@ void clearResMem();
 void clearMsg();
 void resourceStats();
 void cleanProcess(int);
+void releaseResource (int , int );
+void requestResource(int , int); 
 bool req_lt_avail(int*, int);
 int calcDeadlock(int , int , bool* );
 int isDeadlocked(void);
+
+void checkAndProcessRequests();
 
 const unsigned long int NANOSECOND = 1000000000;
 const int TOTALPROCESS = 100; //default
 unsigned long startTime = 0;
 int termdeadlock = 0;
 
-pid_t childpid;
+pid_t childpid = 0;
 int spawnedSlaves = 0;
-int mypid = 0;
+pid_t mypid = 0;
 int noOfSlaves =18;
 int maxslaves = 100;
 int processes = 0;
@@ -48,18 +51,18 @@ shmPcb *shpcbinfo;
 shmRes *shresinfo;
 msgholder *msgqinfo;
 
-FILE *fp;
-
 int verbose =1; //change later
 int ztime = 2;
-
+	FILE *fp;
 int main(int argc, char const *argv[])
 {
+
 	int status = 0;
 	char* logfile;
 	logfile = "log.txt";
 	key_t clock_key, pcb_key,res_key,msg_key;
-
+	arg1 = (char*)malloc(40);
+	srand(time(NULL));
 //signal handling 
 	signal(SIGINT, interruptHandler); 
 	signal(SIGALRM, interruptHandler);
@@ -69,6 +72,10 @@ int main(int argc, char const *argv[])
 	pcb_key = 666;    
 	res_key = 777;
 	msg_key =888; 
+
+	  //File open 
+	fp = fopen(logfile, "w");
+	fprintf(fp, "Opening file ... \n" );
 	//Create shared memory segment for clock
 	shmid = shmget(clock_key, 40*sizeof(shinfo), 0766 |IPC_CREAT |IPC_EXCL);
 	if ((shmid == -1) && (errno != EEXIST)) /* real error */
@@ -177,21 +184,17 @@ if((msgid = msgget(msg_key, IPC_CREAT | 0777)) == -1) {
 
   resourceStats();
 
-  //File open 
-	fp = fopen(logfile, "w");
-	fprintf(fp, "Opening file ... \n" );
+
 // Call child process at random intervals
 	while(shinfo->sec < 20)
 {
 int xx = rand()%1000;
-//int xx = rand()%6000;
 long unsigned currentTime = (shinfo->sec*NANOSECOND)+shinfo->nsec;
 long unsigned plus1xxTime = currentTime + NANOSECOND +xx;
-//long unsigned plus1xxTime = currentTime + xx;
 int flag = 0;
 
 startTime = time(NULL);
-srand(time(NULL));
+
 
     while ( currentTime <plus1xxTime)
        	{
@@ -232,12 +235,32 @@ while (isDeadlocked())
   cleanProcess(z);
   termdeadlock++;
 }
-//shpcbinfo->nsec +=9000;
+shinfo->nsec +=9000;
 
+
+void repeat()
+{
+int P, R,Q;
+  if(msgrcv(msgid, (void *) &msgqinfo, sizeof(msgqinfo->mText), 3, IPC_NOWAIT) == -1) 
+  	P = (errno != ENOMSG)? -1 : atoi(msgqinfo->mText); // process number stored in P
+
+  if(P == -1) 
+    return;
+	R = shpcbinfo[P].request;
+	if(R >= 0 )
+		requestResource(R,P);
+	Q = shpcbinfo[P].release; 
+	if(Q >= 0 )
+		releaseResource(Q,P); 
+	if (shpcbinfo[P].pcbId == -1)
+		cleanProcess(P);
+	repeat();
 }
 
+//check for all processes
+checkAndProcessRequests();
 
-
+}
 
 
 //clearing memory
@@ -247,7 +270,7 @@ while (isDeadlocked())
 	clearSharedMem2();
 	clearResMem();
 	clearMsg();
-	fclose(fp);
+
 	//kill(-getpgrp(),SIGQUIT);
 
 	return 0;
@@ -355,7 +378,7 @@ void spawnSlaveProcess(int noOfSlaves)
 {
 	int i;
 	mypid++;
-    pcbindex = -1;
+  pcbindex = -1;
     //checking the number of processes in the pcb
     for(i = 0; i < 18; i++)
      {
@@ -367,33 +390,36 @@ void spawnSlaveProcess(int noOfSlaves)
       } 
     }
 
-    if(pcbindex == -1)
+   if(pcbindex == -1)
     	printf("Cannot spawn process, PCB is full\n");
     else
     	printf("Spawning process\n");
+    	
     if(verbose)
     {
     	if(pcbindex == -1)
     		fprintf(fp, "PCB is full, cannot spawn process\n");
     	else
     		fprintf(fp, "Spawning process \n");
-    }
+    }  
 	//Forking processes
+if(pcbindex!= -1){
+
+
+
 	for(i = 0; i < noOfSlaves; i++) 
 	{ 
     if((childpid = fork())<=0)
        		break;
-     }
-     if(spawnedSlaves< 100)
-     {
-     	if (childpid == 0)
+       }
+
+    if (childpid == 0)
 	    {
     	//execl user.c    	
-	
+	    	shpcbinfo[pcbindex].pcbId = getpid();
 			sprintf(arg1, "%d", mypid);
-			//Calling user.c program
-
 			execl("user", arg1, NULL); 
+
     	}
     	spawnedSlaves++;
      }
@@ -414,8 +440,10 @@ bool req_lt_avail(int *work, int l) {
   }
 }
 
+
 int calcDeadlock(int n, int m, bool* finish)
 {
+	printf("Calculating deadlocks\n");
 int count = 0;
 int p = 0;
   for(; p < n; p++) {
@@ -439,7 +467,10 @@ int isDeadlocked(void) {
 
   int p =0;
   for(; p < m; p++)
-    work[p] = shresinfo[p].quantityAvail;
+  {
+  	    work[p] = shresinfo[p].quantityAvail;
+  }
+
 
   for(p = 0; p < n; p++)
     finish[p] = false; 
@@ -447,7 +478,7 @@ int isDeadlocked(void) {
   //For each process
   for(p = 0; p < n; p++) 
   {
-    if(!shpcbinfo[p].pcbId) 
+  if(!shpcbinfo[p].pcbId) 
       finish[p] = true;
     
     if(finish[p]) continue;
@@ -491,6 +522,8 @@ void cleanProcess(int i) {
       {
         printf(" %d Resources(R %d) are released from process %d.\n", resourcereturn, j, i);
         printf("There are now %d out of %d for R%d . \n", shresinfo[j].quantityAvail, shresinfo[j].quantity, j);
+        fprintf(fp,"%s %d %d %d","  Resources(R ) are released from process .\n", resourcereturn, j, i);
+        fprintf(fp,"There are now %d out of %d for R%d . \n", shresinfo[j].quantityAvail, shresinfo[j].quantity, j);
 		}
       //Reinitialize all resources to 0
       shpcbinfo[i].resources[j] = 0;
@@ -529,4 +562,35 @@ void releaseResource (int j, int i)
 	}
 	else
 		printf("No resource to release \n");
+}
+
+void checkAndProcessRequests(void) {
+
+  int i;
+  int j;
+  int request = -1;
+  int release = -1;
+  //Go through and look at all the request/release/processID members of each pcbArray element
+  //and see if there is any processing to do 
+  for(i = 0; i < 18; i++) {
+    int resourceType = -1;
+    int quant;
+
+    //If the request flag is set with the value of a resource type, process the request
+    if((resourceType = shpcbinfo[i].request) >= 0) {
+      //If there are resources of the type available, assign it
+      requestResource(resourceType, i);
+    }
+    //If the release flag is set with the value of the resourceType, process it
+    else if((resourceType = shpcbinfo[i].release) >= 0) {
+      releaseResource(resourceType, i);
+    }
+    //If the process set its processID to -1, that means it died and we can put all
+    //the resources it had back into the resourceArray
+    else if(shpcbinfo[i].pcbId == -1){
+      cleanProcess(i);    
+    }
+
+  }
+
 }
