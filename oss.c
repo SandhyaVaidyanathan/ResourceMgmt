@@ -25,6 +25,8 @@ void clearResMem();
 void clearMsg();
 void resourceStats();
 bool req_lt_avail(int*, int);
+int calcDeadlock(int , int , bool* );
+int isDeadlocked(void);
 
 const unsigned long int NANOSECOND = 1000000000;
 const int TOTALPROCESS = 100; //default
@@ -362,4 +364,82 @@ void spawnSlaveProcess(int noOfSlaves)
 			execl("user", arg1, NULL); 
     	}
     	spawnedSlaves++;
+}
+
+//Deadlock detection from slides
+//REquest less than available check
+bool req_lt_avail(int *work, int l) {
+  if(shpcbinfo[l].request == -1) {
+    return true;
+  } 
+  if(work[shpcbinfo[l].request] > 0) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+int calcDeadlock(int n, int m, bool* finish)
+{
+int count = 0;
+int p = 0;
+  for(; p < n; p++) {
+    if(!finish[p]) {
+      shpcbinfo[p].deadlock = 1;
+      count++; 
+    }
+    else {
+      shpcbinfo[p].deadlock = 0;
+    }
+  }
+return count;
+}
+
+int isDeadlocked(void) {
+  printf("Checking for deadlocks at %llu.%llu\n", shinfo->sec,shinfo->nsec);
+  const int n = 18; //no. of proccesses 
+  const int m = 20; //no. of resources
+  int work[m];
+  bool finish[n];
+
+  int p =0;
+  for(; p < m; p++)
+    work[p] = shresinfo[p].quantityAvail;
+
+  for(p = 0; p < n; p++)
+    finish[p] = false; 
+  
+  //For each process
+  for(p = 0; p < n; p++) 
+  {
+    if(!shpcbinfo[p].pcbId) 
+      finish[p] = true;
+    
+    if(finish[p]) continue;
+    if(req_lt_avail(work, p))
+     {
+      finish[p] = true;
+      int i;
+      for(i = 0; i < m; i++) 
+        work[i] += shpcbinfo[p].resources[i];      
+      p = -1;
+    }       
+  }
+
+int count = calcDeadlock(n,m,finish);
+  if( count > 0) {
+    printf("%d processes: ", count);
+    for(p = 0; p < n; p++) {
+      if(!finish[p]) {
+        printf("%d ", p);
+      }
+    }
+    printf("are deadlocked\n");
+    return count;
+  }
+  else {
+    printf("No deadlocks found :)\n");
+    return count;
+  }
 }
