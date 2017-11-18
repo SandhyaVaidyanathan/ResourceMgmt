@@ -232,7 +232,7 @@ while (isDeadlocked())
   cleanProcess(z);
   termdeadlock++;
 }
-shpcbinfo->nsec +=9000;
+//shpcbinfo->nsec +=9000;
 
 }
 
@@ -503,4 +503,30 @@ void cleanProcess(int i) {
   shpcbinfo[i].parrivalnsec = 0;
   shpcbinfo[i].parrivalsec = 0;
   shpcbinfo[i].terminate = 0;
+}
+
+void requestResource(int j, int i) {
+  int avail_res = shresinfo[j].quantityAvail;
+  if(avail_res  > 0)
+   {//grant request and reduce availability
+    shpcbinfo[i].resources[j]++;
+    shpcbinfo[i].request = -1;
+    shresinfo[j].quantityAvail--;
+    printf("Process %d is granted Resource # %d  at time %lu.%lu \n", i , j, shinfo->sec, shinfo->nsec);
+  }
+  else
+  	printf("Resource %d is not available at the moment \n",j );
+}
+
+void releaseResource (int j, int i)
+{
+	if(shpcbinfo[i].resources[j] >0)
+   {
+  shpcbinfo[i].resources[j]--;
+  shresinfo[j].quantityAvail++;
+  shpcbinfo[i].release = -1;
+  printf("Released resource %d from process %d at time %lu.%lu .\n", j , i, shinfo->sec, shinfo->nsec );
+	}
+	else
+		printf("No resource to release \n");
 }
