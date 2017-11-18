@@ -24,6 +24,7 @@ void clearSharedMem2();
 void clearResMem();
 void clearMsg();
 void resourceStats();
+void cleanProcess(int);
 bool req_lt_avail(int*, int);
 int calcDeadlock(int , int , bool* );
 int isDeadlocked(void);
@@ -31,6 +32,7 @@ int isDeadlocked(void);
 const unsigned long int NANOSECOND = 1000000000;
 const int TOTALPROCESS = 100; //default
 unsigned long startTime = 0;
+int termdeadlock = 0;
 
 pid_t childpid;
 int spawnedSlaves = 0;
@@ -202,13 +204,40 @@ srand(time(NULL));
            currentTime = (shinfo->sec*NANOSECOND)+shinfo->nsec; 
        	}
      
-    //spawn process if process table is not full.
+    //spawn process 
 		 spawnSlaveProcess(1);
 
 			xx = rand()%1000;
 			plus1xxTime = currentTime + NANOSECOND +xx;
 
+//-------------------
+while (isDeadlocked())
+	{
+	int x,y,z,max = 0;
+  for(x = 0; x < 18; x++) {
+    if(shpcbinfo[x].deadlock) {
+      int total = 0;
+      for(y = 0; y < 20; y++) 
+        total += shpcbinfo[x].resources[y];
+      
+      if(total > max) {
+        max = total;
+        z = i;
+      }
+    }
+  }
+  printf("Killing process %d\n", z);
+  shpcbinfo[z].deadlock = 0;
+  shpcbinfo[z].terminate = 1;
+  cleanProcess(z);
+  termdeadlock++;
 }
+shpcbinfo->nsec +=9000;
+
+}
+
+
+
 
 
 //clearing memory
@@ -228,6 +257,7 @@ void resourceStats(){
 	  if (verbose)
     {
       int k = 0;
+      printf("5000 or more resources are alloted to shareable resources\n");
       printf("Resource# :         ");
       while(k < 20)
       {
@@ -251,6 +281,7 @@ void resourceStats(){
           k++;
       }
       printf("\n");
+
     }
   }
 
@@ -348,22 +379,25 @@ void spawnSlaveProcess(int noOfSlaves)
     		fprintf(fp, "Spawning process \n");
     }
 	//Forking processes
-		//Forking processes
 	for(i = 0; i < noOfSlaves; i++) 
 	{ 
     if((childpid = fork())<=0)
        		break;
      }
-    if (childpid == 0)
+     if(spawnedSlaves< 100)
+     {
+     	if (childpid == 0)
 	    {
     	//execl user.c    	
-	    	processes++;
+	
 			sprintf(arg1, "%d", mypid);
 			//Calling user.c program
 
 			execl("user", arg1, NULL); 
     	}
     	spawnedSlaves++;
+     }
+
 }
 
 //Deadlock detection from slides
@@ -430,11 +464,10 @@ int isDeadlocked(void) {
 int count = calcDeadlock(n,m,finish);
   if( count > 0) {
     printf("%d processes: ", count);
-    for(p = 0; p < n; p++) {
-      if(!finish[p]) {
+    for(p = 0; p < n; p++) 
+      if(!finish[p]) 
         printf("%d ", p);
-      }
-    }
+
     printf("are deadlocked\n");
     return count;
   }
@@ -442,4 +475,32 @@ int count = calcDeadlock(n,m,finish);
     printf("No deadlocks found :)\n");
     return count;
   }
+}
+
+
+void cleanProcess(int i) {
+//Getting resources from a dead process
+  int j =0;
+  while( j < 20) {
+    if(shpcbinfo[i].resources[j] > 0) {
+      //Get the number of resource to return
+      int resourcereturn = shpcbinfo[i].resources[j];
+      //Add it to available resource
+      shresinfo[j].quantityAvail += resourcereturn;
+      if(verbose) 
+      {
+        printf(" %d Resources(R %d) are released from process %d.\n", resourcereturn, j, i);
+        printf("There are now %d out of %d for R%d . \n", shresinfo[j].quantityAvail, shresinfo[j].quantity, j);
+		}
+      //Reinitialize all resources to 0
+      shpcbinfo[i].resources[j] = 0;
+    } 
+    j++;
+  }
+  shpcbinfo[i].pcbId = 0;
+  shpcbinfo[i].request = -1;
+  shpcbinfo[i].release = -1;
+  shpcbinfo[i].parrivalnsec = 0;
+  shpcbinfo[i].parrivalsec = 0;
+  shpcbinfo[i].terminate = 0;
 }
