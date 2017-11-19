@@ -21,10 +21,7 @@ void clearSharedMem1();
 void clearSharedMem2();
 void clearResMem();
 void clearMsg();
-
-
-//--
-void sendMessage(int , int );
+//void sendMessage(int , int );
 
 const unsigned long int NANOSECOND = 1000000000;
 
@@ -96,51 +93,38 @@ if((msgid = msgget(msg_key, IPC_CREAT | 0777)) == -1) {
 
 	signal(SIGINT, interruptHandler); 
 	signal(SIGALRM, interruptHandler);
+	signal(SIGQUIT, interruptHandler);
 	alarm(2);	// 2 real seconds
-
-//------
 
 void sendMessage(int qid, int msgtype) {
   struct msgholder msg;
   msg.mType = msgtype;
   sprintf(msg.mText, "%d", mypid);
 
-  if(msgsnd(qid, (void *) &msg, sizeof(msg.mText), IPC_NOWAIT) == -1) {
+  if(msgsnd(qid, (void *) &msg, sizeof(msg.mText), IPC_NOWAIT) == -1) 
     perror("    Slave msgsnd error");
-  }
+  
 }
   int i = 0;
-  int j;
-
-  long long duration;
-  int notFinished = 1;
-
+  bool finish = 0;
   do {
-  
-    //If this process' request flag is -1, it is not waiting on anything
-    //go ahead and determine an action
+    //If this process request is -1, it need not wait 
     if(shpcbinfo[mypid].request == -1 && shpcbinfo[mypid].release == -1) {
-      //printf("    Slave %d has no request\n", processNumber);
-      //Check to see if process will terminate
-    int nsecdiff  = shinfo->sec - shpcbinfo[mypid].parrivalsec ;
+     int nsecdiff  = shinfo->sec - shpcbinfo[mypid].parrivalsec ;
     int term;
   if(nsecdiff >=1) {
-    term = 1 + rand() % 3;
-  }
 
+    term = 1 + rand() % 3;
+  }  	//randomly terminating process
       if(term == 1) 
       {
-      	        notFinished = 0;
+      	   finish = true;
       }
-
-      //if not, see what other action it will take
       else {
-
         if(rand()%2) {
-          int choice = rand() % 2;
+          int option = rand() % 2;
           //Request a resource
-          if(choice) {
-          	//shpcbinfo[mypid].request = 6; 
+          if(option) {
           shpcbinfo[mypid].request = rand()%3; 
            sendMessage(msgid, 3);
           }
@@ -158,7 +142,7 @@ void sendMessage(int qid, int msgtype) {
         }
       }
     }
-  } while (notFinished  && !shpcbinfo[mypid].terminate);
+  } while (!finish  && !shpcbinfo[mypid].terminate);
 
   if(!shpcbinfo[mypid].terminate) {
     shpcbinfo[mypid].pcbId = -1;
@@ -188,7 +172,8 @@ void interruptHandler(int SIG){
     fprintf(stderr, "Master has timed out. killing processes\n");
   }
 
-  	kill(-getpgrp(), 9);
+  	//kill(-getpgrp(), 9);
+  	wait(NULL);
   	clearSharedMem1();
   	clearSharedMem2();
   	clearResMem();

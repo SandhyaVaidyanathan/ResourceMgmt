@@ -29,11 +29,11 @@ void requestResource(int , int);
 bool req_lt_avail(int*, int);
 int calcDeadlock(int , int , bool* );
 int isDeadlocked(void);
-
-void checkAndProcessRequests();
+void requesting();
 
 const unsigned long int NANOSECOND = 1000000000;
 const int TOTALPROCESS = 100; //default
+	FILE *fp;
 unsigned long startTime = 0;
 int termdeadlock = 0;
 
@@ -51,9 +51,9 @@ shmPcb *shpcbinfo;
 shmRes *shresinfo;
 msgholder *msgqinfo;
 
-int verbose =1; //change later
+int verbose = 0;
 int ztime = 2;
-	FILE *fp;
+
 int main(int argc, char const *argv[])
 {
 
@@ -66,13 +66,31 @@ int main(int argc, char const *argv[])
 //signal handling 
 	signal(SIGINT, interruptHandler); 
 	signal(SIGALRM, interruptHandler);
+	signal(SIGQUIT, interruptHandler);
 	alarm(2);	// 2 real seconds
 
 	clock_key = 555;
 	pcb_key = 666;    
 	res_key = 777;
 	msg_key =888; 
+int option;
 
+while ((option = getopt(argc, argv,"hv")) != -1) 
+  	{		
+  	switch (option) 
+  	{		
+  		case 'h' :		
+           printf("Usage executable -v ie. ./oss -v would write logs to the file log.txt \n");		
+           return 1;
+           break;	
+		case 'v':
+			verbose = 1;
+			break;
+		default:
+			printf("Please check help option for details\n");
+		}
+	}
+    
 	  //File open 
 	fp = fopen(logfile, "w");
 	fprintf(fp, "Opening file ... \n" );
@@ -257,21 +275,22 @@ int P, R,Q;
 	repeat();
 }
 
-//check for all processes
-checkAndProcessRequests();
+//checking requests for all processes
+requesting();
 
 }
-
+fclose(fp);
 
 //clearing memory
 	free(arg1);
-	wait(&status);
+	//kill(-getpgrp(),SIGQUIT);
+	wait(NULL);
 	clearSharedMem1();
 	clearSharedMem2();
 	clearResMem();
 	clearMsg();
 
-	//kill(-getpgrp(),SIGQUIT);
+
 
 	return 0;
 }
@@ -311,6 +330,7 @@ void resourceStats(){
 void interruptHandler(int SIG){
   signal(SIGQUIT, SIG_IGN);
   signal(SIGINT, SIG_IGN);
+  signal(SIGQUIT,SIG_IGN);
 
   if(SIG == SIGINT)
    {
@@ -322,7 +342,7 @@ void interruptHandler(int SIG){
     fprintf(stderr, "Master has timed out. killing processes\n");
   }
 
-  	kill(-getpgrp(), 9);
+  	//kill(-getpgrp(), 9);
   	clearSharedMem1();
   	clearSharedMem2();
   	clearResMem();
@@ -404,9 +424,6 @@ void spawnSlaveProcess(int noOfSlaves)
     }  
 	//Forking processes
 if(pcbindex!= -1){
-
-
-
 	for(i = 0; i < noOfSlaves; i++) 
 	{ 
     if((childpid = fork())<=0)
@@ -518,11 +535,11 @@ void cleanProcess(int i) {
       int resourcereturn = shpcbinfo[i].resources[j];
       //Add it to available resource
       shresinfo[j].quantityAvail += resourcereturn;
+      printf(" %d Resources(R %d) are released from process %d.\n", resourcereturn, j, i);
       if(verbose) 
       {
-        printf(" %d Resources(R %d) are released from process %d.\n", resourcereturn, j, i);
-        printf("There are now %d out of %d for R%d . \n", shresinfo[j].quantityAvail, shresinfo[j].quantity, j);
-        fprintf(fp,"%s %d %d %d","  Resources(R ) are released from process .\n", resourcereturn, j, i);
+      //  printf(" %d Resources(R %d) are released from process %d.\n", resourcereturn, j, i);
+        fprintf(fp," %d Resources(R %d) are released from process %d.\n", resourcereturn, j, i);
         fprintf(fp,"There are now %d out of %d for R%d . \n", shresinfo[j].quantityAvail, shresinfo[j].quantity, j);
 		}
       //Reinitialize all resources to 0
@@ -564,29 +581,18 @@ void releaseResource (int j, int i)
 		printf("No resource to release \n");
 }
 
-void checkAndProcessRequests(void) {
+void requesting(void) {
 
   int i;
-  int j;
-  int request = -1;
-  int release = -1;
-  //Go through and look at all the request/release/processID members of each pcbArray element
-  //and see if there is any processing to do 
   for(i = 0; i < 18; i++) {
-    int resourceType = -1;
-    int quant;
-
-    //If the request flag is set with the value of a resource type, process the request
-    if((resourceType = shpcbinfo[i].request) >= 0) {
-      //If there are resources of the type available, assign it
-      requestResource(resourceType, i);
-    }
-    //If the release flag is set with the value of the resourceType, process it
-    else if((resourceType = shpcbinfo[i].release) >= 0) {
-      releaseResource(resourceType, i);
-    }
-    //If the process set its processID to -1, that means it died and we can put all
-    //the resources it had back into the resourceArray
+    int resource = -1;
+    if((resource = shpcbinfo[i].request) >= 0) 
+      requestResource(resource, i);
+    
+    else if((resource = shpcbinfo[i].release) >= 0) 
+      releaseResource(resource, i);
+    
+    //If the process set its pcbId is to -1 collect reources it had back to the pool
     else if(shpcbinfo[i].pcbId == -1){
       cleanProcess(i);    
     }
