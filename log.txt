@@ -1,0 +1,57 @@
+Opening file ... 
+Spawning process 
+Spawning process 
+Spawning process 
+Spawning process 
+Spawning process 
+Spawning process 
+Spawning process 
+Spawning process 
+ 1 Resources(R 0) are released from process 3.
+There are now 9 out of 10 for R0 . 
+ 1 Resources(R 2) are released from process 3.
+There are now 3 out of 3 for R2 . 
+Spawning process 
+ 1 Resources(R 0) are released from process 4.
+There are now 9 out of 10 for R0 . 
+ 1 Resources(R 2) are released from process 4.
+There are now 2 out of 3 for R2 . 
+Spawning process 
+Spawning process 
+ 1 Resources(R 0) are released from process 5.
+There are now 9 out of 10 for R0 . 
+ 1 Resources(R 2) are released from process 5.
+There are now 3 out of 3 for R2 . 
+Spawning process 
+ 1 Resources(R 0) are released from process 6.
+There are now 9 out of 10 for R0 . 
+ 1 Resources(R 2) are released from process 6.
+There are now 2 out of 3 for R2 . 
+Spawning process 
+ 1 Resources(R 0) are released from process 7.
+There are now 10 out of 10 for R0 . 
+ 1 Resources(R 2) are released from process 7.
+There are now 1 out of 3 for R2 . 
+Spawning process 
+Spawning process 
+ 1 Resources(R 0) are released from process 8.
+There are now 9 out of 10 for R0 . 
+ 1 Resources(R 2) are released from process 8.
+There are now 3 out of 3 for R2 . 
+Spawning process 
+Spawning process 
+Spawning process 
+Spawning process 
+ 1 Resources(R 0) are released from process 10.
+There are now 4 out of 10 for R0 . 
+ 1 Resources(R 2) are released from process 10.
+There are now 1 out of 3 for R2 . 
+ 1 Resources(R 0) are released from process 11.
+There are now 5 out of 10 for R0 . 
+ 1 Resources(R 2) are released from process 11.
+There are now 2 out of 3 for R2 . 
+Spawning process 
+ 1 Resources(R 0) are released from process 13.
+There are now 6 out of 10 for R0 . 
+ 1 Resources(R 2) are released from process 13.
+There are now 1 out of 3 for R2 . 
