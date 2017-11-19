@@ -251,7 +251,7 @@ while (isDeadlocked())
   shpcbinfo[z].deadlock = 0;
   shpcbinfo[z].terminate = 1;
   cleanProcess(z);
-  termdeadlock++;
+  termdeadlock++;  //to track number of process that are terminated due to deadlock
 }
 shinfo->nsec +=9000;
 
@@ -296,7 +296,7 @@ fclose(fp);
 }
 void resourceStats(){
 
-	  if (verbose)
+	  if (verbose==1)
     {
       int k = 0;
       printf("5000 or more resources are alloted to shareable resources\n");
@@ -415,7 +415,7 @@ void spawnSlaveProcess(int noOfSlaves)
     else
     	printf("Spawning process\n");
     	
-    if(verbose)
+    if(verbose == 1)
     {
     	if(pcbindex == -1)
     		fprintf(fp, "PCB is full, cannot spawn process\n");
@@ -536,7 +536,7 @@ void cleanProcess(int i) {
       //Add it to available resource
       shresinfo[j].quantityAvail += resourcereturn;
       printf(" %d Resources(R %d) are released from process %d.\n", resourcereturn, j, i);
-      if(verbose) 
+      if(verbose==1) 
       {
       //  printf(" %d Resources(R %d) are released from process %d.\n", resourcereturn, j, i);
         fprintf(fp," %d Resources(R %d) are released from process %d.\n", resourcereturn, j, i);
